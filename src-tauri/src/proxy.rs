@@ -9,17 +9,49 @@ use axum::{
     Router,
 };
 use futures_util::{SinkExt, StreamExt};
-use include_dir::{include_dir, Dir};
 use reqwest::Client;
-use std::sync::Arc;
+use lru::LruCache;
+use rust_embed::Embed;
+use std::num::NonZeroUsize;
+use std::sync::{Arc, LazyLock, Mutex};
 
 use crate::config::AppConfig;
 
-static UI_DIR: Dir<'static> =
-    include_dir!("$CARGO_MANIFEST_DIR/../incus-ui-canonical/build/ui");
+#[derive(Embed)]
+#[folder = "../incus-ui-canonical/build/ui"]
+struct UiAsset;
 
-static DOCS_DIR: Dir<'static> =
-    include_dir!("$CARGO_MANIFEST_DIR/../incus-docs-build");
+#[derive(Embed)]
+#[folder = "../incus-docs-build"]
+struct DocsAsset;
+
+static UI_CACHE: LazyLock<Mutex<LruCache<String, Arc<[u8]>>>> =
+    LazyLock::new(|| Mutex::new(LruCache::new(NonZeroUsize::new(256).unwrap())));
+
+static DOCS_CACHE: LazyLock<Mutex<LruCache<String, Arc<[u8]>>>> =
+    LazyLock::new(|| Mutex::new(LruCache::new(NonZeroUsize::new(512).unwrap())));
+
+fn get_ui_asset(path: &str) -> Option<Arc<[u8]>> {
+    let mut cache = UI_CACHE.lock().unwrap();
+    if let Some(data) = cache.get(path) {
+        return Some(Arc::clone(data));
+    }
+    let file = UiAsset::get(path)?;
+    let data: Arc<[u8]> = file.data.to_vec().into();
+    cache.put(path.to_string(), Arc::clone(&data));
+    Some(data)
+}
+
+fn get_docs_asset(path: &str) -> Option<Arc<[u8]>> {
+    let mut cache = DOCS_CACHE.lock().unwrap();
+    if let Some(data) = cache.get(path) {
+        return Some(Arc::clone(data));
+    }
+    let file = DocsAsset::get(path)?;
+    let data: Arc<[u8]> = file.data.to_vec().into();
+    cache.put(path.to_string(), Arc::clone(&data));
+    Some(data)
+}
 
 // ── State ────────────────────────────────────────────────────────────────────
 
@@ -36,7 +68,9 @@ pub fn build_client(config: &AppConfig) -> anyhow::Result<Client> {
         .danger_accept_invalid_certs(config.accept_invalid_certs)
         .use_rustls_tls()
         .pool_max_idle_per_host(8)
-        .tcp_keepalive(std::time::Duration::from_secs(20));
+        .tcp_keepalive(std::time::Duration::from_secs(20))
+        .timeout(std::time::Duration::from_secs(30))
+        .connect_timeout(std::time::Duration::from_secs(5));
 
     if let Some(ca_path) = &config.ca_cert_path {
         let pem = std::fs::read(ca_path)
@@ -106,6 +140,15 @@ async fn host_guard(
     next.run(req).await
 }
 
+// ── Pre-built index.html with interceptor script ─────────────────────────────
+
+static INDEX_HTML: LazyLock<Vec<u8>> = LazyLock::new(|| {
+    let raw = UiAsset::get("index.html").expect("index.html must exist in built UI");
+    let mut html = String::from_utf8_lossy(&raw.data).into_owned();
+    html.push_str(LINK_INTERCEPTOR_SCRIPT);
+    html.into_bytes()
+});
+
 // ── Static file handler ──────────────────────────────────────────────────────
 
 async fn static_handler(uri: axum::http::Uri) -> impl IntoResponse {
@@ -113,48 +156,36 @@ async fn static_handler(uri: axum::http::Uri) -> impl IntoResponse {
     let path = raw.strip_prefix("ui/").unwrap_or(raw);
     let path = if path.is_empty() { "index.html" } else { path };
 
-    let (file, resolved_path) = match UI_DIR.get_file(path) {
-        Some(f) => (f, path),
-        None => {
-            let f = UI_DIR
-                .get_file("index.html")
-                .expect("index.html must exist in built UI");
-            (f, "index.html")
-        }
-    };
-
-    let mime = mime_guess::from_path(resolved_path)
-        .first_or_octet_stream()
-        .to_string();
-
-    let cache_control = if resolved_path.starts_with("assets/") {
-        "public, max-age=31536000, immutable"
-    } else {
-        "no-cache, must-revalidate"
-    };
-
-    // Inject link interceptor into index.html so the React shell can handle
-    // documentation links (open in in-app docs window) and external links
-    // (Discussion, Report a bug → open in system browser).
-    if resolved_path == "index.html" {
-        let mut html = String::from_utf8_lossy(file.contents()).into_owned();
-        html.push_str(LINK_INTERCEPTOR_SCRIPT);
+    // Serve pre-built index.html (with link interceptor already injected)
+    if path == "index.html" || get_ui_asset(path).is_none() {
         return (
             [
                 (header::CONTENT_TYPE, "text/html; charset=utf-8"),
                 (header::CACHE_CONTROL, "no-cache, must-revalidate"),
             ],
-            html.into_bytes(),
+            INDEX_HTML.clone(),
         )
             .into_response();
     }
+
+    let data = get_ui_asset(path).unwrap();
+
+    let mime = mime_guess::from_path(path)
+        .first_or_octet_stream()
+        .to_string();
+
+    let cache_control = if path.starts_with("assets/") {
+        "public, max-age=31536000, immutable"
+    } else {
+        "no-cache, must-revalidate"
+    };
 
     (
         [
             (header::CONTENT_TYPE, mime.as_str()),
             (header::CACHE_CONTROL, cache_control),
         ],
-        file.contents(),
+        data.to_vec(),
     )
         .into_response()
 }
@@ -177,7 +208,7 @@ async fn docs_handler(uri: axum::http::Uri) -> impl IntoResponse {
     ];
 
     for candidate in &candidates {
-        if let Some(file) = DOCS_DIR.get_file(candidate.as_str()) {
+        if let Some(data) = get_docs_asset(candidate.as_str()) {
             let mime = mime_guess::from_path(candidate.as_str())
                 .first_or_octet_stream()
                 .to_string();
@@ -191,7 +222,7 @@ async fn docs_handler(uri: axum::http::Uri) -> impl IntoResponse {
                     (header::CONTENT_TYPE, mime.as_str()),
                     (header::CACHE_CONTROL, cache_control),
                 ],
-                file.contents(),
+                data.to_vec(),
             )
                 .into_response();
         }

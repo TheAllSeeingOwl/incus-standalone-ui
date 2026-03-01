@@ -34,6 +34,11 @@
     go
     incus
 
+    # Icon generation
+    resvg
+    icoutils
+    libicns
+
     # Misc build tools
     curl
     file

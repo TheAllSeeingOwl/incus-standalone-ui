@@ -99,19 +99,61 @@ pub async fn open_docs_window(
 
     if let Some(win) = app.get_webview_window("docs") {
         let _ = win.eval(&format!("window.location.href = {:?}", url));
+        inject_docs_zoom(&win);
         let _ = win.show();
         let _ = win.set_focus();
         return Ok(());
     }
 
-    WebviewWindowBuilder::new(&app, "docs", WebviewUrl::External(parsed))
+    let win = WebviewWindowBuilder::new(&app, "docs", WebviewUrl::External(parsed))
         .title("Incus Documentation")
         .inner_size(1100.0, 800.0)
         .zoom_hotkeys_enabled(true)
+        .decorations(cfg!(feature = "native-titlebar"))
         .build()
         .map_err(|e| e.to_string())?;
 
+    inject_docs_zoom(&win);
+
     Ok(())
+}
+
+fn inject_docs_zoom(win: &tauri::WebviewWindow) {
+    let _ = win.eval(
+        r#"
+        (function() {
+            if (window.__zoomSetup) return;
+            window.__zoomSetup = true;
+            let zoom = 1.0;
+            document.addEventListener('keydown', function(e) {
+                if (!e.ctrlKey && !e.metaKey) return;
+                if (e.key === '=' || e.key === '+') {
+                    e.preventDefault();
+                    zoom = Math.min(zoom + 0.1, 3.0);
+                    document.body.style.zoom = zoom;
+                } else if (e.key === '-') {
+                    e.preventDefault();
+                    zoom = Math.max(zoom - 0.1, 0.3);
+                    document.body.style.zoom = zoom;
+                } else if (e.key === '0') {
+                    e.preventDefault();
+                    zoom = 1.0;
+                    document.body.style.zoom = zoom;
+                }
+            });
+            document.addEventListener('wheel', function(e) {
+                if (!e.ctrlKey && !e.metaKey) return;
+                e.preventDefault();
+                if (e.deltaY < 0) {
+                    zoom = Math.min(zoom + 0.1, 3.0);
+                } else {
+                    zoom = Math.max(zoom - 0.1, 0.3);
+                }
+                document.body.style.zoom = zoom;
+            }, { passive: false });
+        })();
+        "#,
+    );
 }
 
 #[tauri::command]
