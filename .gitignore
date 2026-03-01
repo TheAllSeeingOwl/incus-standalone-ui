@@ -8,3 +8,4 @@ src-tauri/target/
 temp
 incus-docs-build/
 incus-src/
+result
