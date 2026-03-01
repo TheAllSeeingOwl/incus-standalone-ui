@@ -91,6 +91,11 @@
           export SOURCE_DATE_EPOCH=${toString incus-src.lastModified}
 
           sphinx-build -b html -q doc $out
+
+          # Hide the "view this page" button — it opens a raw source
+          # overlay that can't be dismissed inside the embedded webview.
+          echo '.content-icon-container .view-this-page { display: none !important; }' \
+            >> $out/_static/styles/furo.css
         '';
 
         dontInstall = true;
@@ -220,6 +225,7 @@
 
           nativeBuildInputs = with pkgs; [
             pkg-config
+            wrapGAppsHook3
           ];
 
           buildInputs = with pkgs; [
