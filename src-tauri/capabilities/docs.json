@@ -1,0 +1,9 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "docs",
+  "description": "Minimal permissions for the docs window",
+  "windows": ["docs"],
+  "permissions": [
+    "core:webview:allow-set-webview-zoom"
+  ]
+}

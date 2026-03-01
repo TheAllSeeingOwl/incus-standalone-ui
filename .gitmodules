@@ -1,0 +1,3 @@
+[submodule "incus-ui-canonical"]
+	path = incus-ui-canonical
+	url = https://github.com/zabbly/incus-ui-canonical.git

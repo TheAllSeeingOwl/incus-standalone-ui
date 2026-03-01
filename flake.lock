@@ -1,0 +1,78 @@
+{
+  "nodes": {
+    "canonical-sphinx-extensions-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1761923612,
+        "narHash": "sha256-Nom0ExvO9nEN0JvIV4rfxVS9MMGF5UWeqonUUs6JxLE=",
+        "owner": "canonical",
+        "repo": "canonical-sphinx-extensions",
+        "rev": "4321e8945dfd15bc36e1a01c85c5680d7bdbdebe",
+        "type": "github"
+      },
+      "original": {
+        "owner": "canonical",
+        "repo": "canonical-sphinx-extensions",
+        "type": "github"
+      }
+    },
+    "incus-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1772169703,
+        "narHash": "sha256-KanD657VNxcf7xjFkEoQZJz3hB12KOuAAEInNZoQmcY=",
+        "owner": "lxc",
+        "repo": "incus",
+        "rev": "0b978d096f8e7aae1b0f12353db724f93948bc87",
+        "type": "github"
+      },
+      "original": {
+        "owner": "lxc",
+        "repo": "incus",
+        "type": "github"
+      }
+    },
+    "incus-ui-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1772101282,
+        "narHash": "sha256-Dql04inmmWi7X6dQdjJmw0hkIBxlNlnwlTrK3/EN3yA=",
+        "owner": "zabbly",
+        "repo": "incus-ui-canonical",
+        "rev": "944b360119a1ec87926b4d7c4d8749dd87bad745",
+        "type": "github"
+      },
+      "original": {
+        "owner": "zabbly",
+        "repo": "incus-ui-canonical",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1772173633,
+        "narHash": "sha256-MOH58F4AIbCkh6qlQcwMycyk5SWvsqnS/TCfnqDlpj4=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "c0f3d81a7ddbc2b1332be0d8481a672b4f6004d6",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixpkgs-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "canonical-sphinx-extensions-src": "canonical-sphinx-extensions-src",
+        "incus-src": "incus-src",
+        "incus-ui-src": "incus-ui-src",
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
