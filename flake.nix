@@ -231,6 +231,9 @@
             libayatana-appindicator
           ];
 
+          # libappindicator-sys dlopen's the .so at build time
+          LD_LIBRARY_PATH = lib.makeLibraryPath [ pkgs.libayatana-appindicator ];
+
           # Link pre-built frontend assets before cargo runs.
           # build.rs looks for these relative to $CARGO_MANIFEST_DIR/..
           # Stay at the project root — cargoBuildHook handles cd into src-tauri.
