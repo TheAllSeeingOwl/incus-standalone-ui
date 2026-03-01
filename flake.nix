@@ -241,8 +241,16 @@
             libayatana-appindicator
           ];
 
-          # libappindicator-sys dlopen's the .so at build time
+          # libappindicator-sys dlopen's the .so at build *and* run time.
+          # Build-time: LD_LIBRARY_PATH lets the proc-macro/build.rs find it.
+          # Run-time:  inject into the wrapGAppsHook3 wrapper via preFixup.
           LD_LIBRARY_PATH = lib.makeLibraryPath [ pkgs.libayatana-appindicator ];
+
+          preFixup = ''
+            gappsWrapperArgs+=(
+              --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [ pkgs.libayatana-appindicator ]}"
+            )
+          '';
 
           # Link pre-built frontend assets before cargo runs.
           # build.rs looks for these relative to $CARGO_MANIFEST_DIR/..
