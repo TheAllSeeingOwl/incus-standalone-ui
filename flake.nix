@@ -224,11 +224,11 @@
           preBuild = ''
             cd src-tauri/..
 
-            # UI SPA (embedded via include_dir!)
+            # UI SPA (embedded via rust-embed)
             mkdir -p incus-ui-canonical/build
             ln -s ${incus-ui} incus-ui-canonical/build/ui
 
-            # Documentation HTML (embedded via include_dir!)
+            # Documentation HTML (embedded via rust-embed)
             ln -s ${incus-docs} incus-docs-build
 
             # Shell / Tauri frontend dist
@@ -268,13 +268,12 @@ Type=Application
 Categories=System;
 DESKTOP
 
-            for size in 32 64 128 256; do
-              icon="src-tauri/icons/''${size}x''${size}.png"
-              if [ -f "$icon" ]; then
-                install -Dm644 "$icon" \
-                  "$out/share/icons/hicolor/''${size}x''${size}/apps/incus-manager.png"
-              fi
+            for size in 32 64 128; do
+              install -Dm644 "src-tauri/icons/''${size}x''${size}.png" \
+                "$out/share/icons/hicolor/''${size}x''${size}/apps/incus-manager.png"
             done
+            install -Dm644 "src-tauri/icons/128x128@2x.png" \
+              "$out/share/icons/hicolor/256x256/apps/incus-manager.png"
           '';
 
           meta = with lib; {
