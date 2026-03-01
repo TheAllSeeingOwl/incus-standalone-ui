@@ -21,9 +21,15 @@
       url = "github:canonical/canonical-sphinx-extensions";
       flake = false;
     };
+
+    # swagger-ui (cloned by Sphinx conf.py at build time — prefetch here)
+    swagger-ui-src = {
+      url = "github:swagger-api/swagger-ui";
+      flake = false;
+    };
   };
 
-  outputs = { self, nixpkgs, incus-src, incus-ui-src, canonical-sphinx-extensions-src }:
+  outputs = { self, nixpkgs, incus-src, incus-ui-src, canonical-sphinx-extensions-src, swagger-ui-src }:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
@@ -37,7 +43,7 @@
         src = canonical-sphinx-extensions-src;
         format = "pyproject";
         nativeBuildInputs = [ pkgs.python3Packages.setuptools ];
-        propagatedBuildInputs = [ pkgs.python3Packages.sphinx ];
+        propagatedBuildInputs = with pkgs.python3Packages; [ sphinx beautifulsoup4 gitpython ];
         doCheck = false;
       };
 
@@ -67,7 +73,7 @@
         version = "0";
         src = incus-src;
 
-        nativeBuildInputs = [ sphinxPython pkgs.incus pkgs.go ];
+        nativeBuildInputs = [ sphinxPython pkgs.incus pkgs.go pkgs.git ];
 
         buildPhase = ''
           # conf.py calls: go env GOPATH → $GOPATH/bin/incus
@@ -75,6 +81,10 @@
           mkdir -p .gopath/bin
           ln -s ${pkgs.incus}/bin/incus .gopath/bin/incus
           export GOPATH=$(pwd)/.gopath
+
+          # conf.py tries to git-clone swagger-ui; pre-populate it
+          mkdir -p doc/.sphinx/deps
+          cp -r ${swagger-ui-src} doc/.sphinx/deps/swagger-ui
 
           sphinx-build -b html -q doc $out
         '';
@@ -86,7 +96,7 @@
 
       uiYarnDeps = pkgs.fetchYarnDeps {
         yarnLock = "${incus-ui-src}/yarn.lock";
-        hash = lib.fakeHash;
+        hash = "sha256-08G3jYj7N9h6aBnqwGQQtpYOP/wP/k2VRY7dgmpxXZw=";
       };
 
       incus-ui = pkgs.stdenv.mkDerivation {
@@ -102,6 +112,7 @@
 
         configurePhase = ''
           export HOME=$TMPDIR
+          yarn config --offline set yarn-offline-mirror $yarnOfflineCache
           fixup-yarn-lock yarn.lock
           yarn install --offline --frozen-lockfile --ignore-scripts --no-progress
           patchShebangs node_modules
@@ -125,7 +136,7 @@
 
       shellYarnDeps = pkgs.fetchYarnDeps {
         yarnLock = ./yarn.lock;
-        hash = lib.fakeHash;
+        hash = "sha256-C4fabtbTLQSVrfSwwWSbgSKraY3jLfUVmDl3QzxONBY=";
       };
 
       incus-shell = pkgs.stdenv.mkDerivation {
@@ -151,6 +162,7 @@
 
         configurePhase = ''
           export HOME=$TMPDIR
+          yarn config --offline set yarn-offline-mirror $yarnOfflineCache
           fixup-yarn-lock yarn.lock
           yarn install --offline --frozen-lockfile --ignore-scripts --no-progress
           patchShebangs node_modules
@@ -219,11 +231,10 @@
             libayatana-appindicator
           ];
 
-          # Link pre-built frontend assets into the source tree before cargo runs.
+          # Link pre-built frontend assets before cargo runs.
           # build.rs looks for these relative to $CARGO_MANIFEST_DIR/..
+          # Stay at the project root — cargoBuildHook handles cd into src-tauri.
           preBuild = ''
-            cd src-tauri/..
-
             # UI SPA (embedded via rust-embed)
             mkdir -p incus-ui-canonical/build
             ln -s ${incus-ui} incus-ui-canonical/build/ui
@@ -245,8 +256,6 @@
             echo "${incusUiRev}" > incus-ui-canonical/.git/HEAD
             mkdir -p incus-src/.git
             echo "ref: refs/heads/main" > incus-src/.git/HEAD
-
-            cd src-tauri
           '';
 
           cargoBuildFlags =

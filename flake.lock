@@ -69,7 +69,24 @@
         "canonical-sphinx-extensions-src": "canonical-sphinx-extensions-src",
         "incus-src": "incus-src",
         "incus-ui-src": "incus-ui-src",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "swagger-ui-src": "swagger-ui-src"
+      }
+    },
+    "swagger-ui-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1772193135,
+        "narHash": "sha256-yMgQdtH6o1Fzq3DSDthwtzOnQrFZEFYX+R0am90pBSQ=",
+        "owner": "swagger-api",
+        "repo": "swagger-ui",
+        "rev": "1b33a5976d8f5e02d3bc40de1deae3a4a3642e36",
+        "type": "github"
+      },
+      "original": {
+        "owner": "swagger-api",
+        "repo": "swagger-ui",
+        "type": "github"
       }
     }
   },
