@@ -46,6 +46,9 @@ default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
 native-titlebar = []
 
+[patch.crates-io]
+tray-icon = { path = "patches/tray-icon" }
+
 [profile.release]
 strip = true
 lto = true

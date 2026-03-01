@@ -12,8 +12,9 @@ pub fn setup_tray(app: &AppHandle) -> anyhow::Result<()> {
 
     let menu = Menu::with_items(app, &[&open_item, &settings_item, &sep, &quit_item])?;
 
-    TrayIconBuilder::new()
+    TrayIconBuilder::with_id("incus-manager")
         .icon(app.default_window_icon().cloned().expect("no default icon"))
+        .title("Incus Manager")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .tooltip("Incus Manager")

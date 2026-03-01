@@ -6,18 +6,17 @@ fn main() {
         .unwrap_or_else(|| "unknown".to_string());
     println!("cargo:rustc-env=INCUS_VERSION={}", incus_version);
 
-    // Last commit that touched the doc/ folder (written by build-docs.sh)
-    let incus_commit = std::fs::read_to_string("../.docs-commit")
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
+    // Last commit that touched the doc/ folder (written by build-docs.sh or flake)
+    let incus_commit = read_commit_file("../.docs-commit")
         .unwrap_or_else(|| git_short_commit_path("../incus-src", "doc/"));
     println!("cargo:rustc-env=INCUS_COMMIT={}", incus_commit);
     println!("cargo:rerun-if-changed=../.docs-commit");
 
-    // Last commit of incus-ui-canonical
-    let ui_commit = git_short_commit("../incus-ui-canonical");
+    // Last commit of incus-ui-canonical (written by flake, or read from git)
+    let ui_commit = read_commit_file("../.ui-commit")
+        .unwrap_or_else(|| git_short_commit("../incus-ui-canonical"));
     println!("cargo:rustc-env=INCUS_UI_COMMIT={}", ui_commit);
+    println!("cargo:rerun-if-changed=../.ui-commit");
 
     // Re-run if either submodule HEAD changes
     println!("cargo:rerun-if-changed=../incus-src/internal/version/flex.go");
@@ -25,6 +24,13 @@ fn main() {
     println!("cargo:rerun-if-changed=../incus-ui-canonical/.git/HEAD");
 
     tauri_build::build()
+}
+
+fn read_commit_file(path: &str) -> Option<String> {
+    std::fs::read_to_string(path)
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
 }
 
 fn read_incus_version() -> Option<String> {

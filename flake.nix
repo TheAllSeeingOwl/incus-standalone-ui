@@ -86,6 +86,10 @@
           mkdir -p doc/.sphinx/deps
           cp -r ${swagger-ui-src} doc/.sphinx/deps/swagger-ui
 
+          # Use the flake input's commit date so Sphinx/Furo shows a real
+          # date instead of 1980 (Nix sandbox default).
+          export SOURCE_DATE_EPOCH=${toString incus-src.lastModified}
+
           sphinx-build -b html -q doc $out
         '';
 
@@ -250,15 +254,10 @@
 
             # Version metadata for build.rs
             echo "${incusSrcRev}" > .docs-commit
+            echo "${incusUiRev}" > .ui-commit
 
             mkdir -p incus-src/internal/version
             echo ${lib.escapeShellArg versionGo} > incus-src/internal/version/flex.go
-
-            # Fake git metadata so build.rs doesn't shell out to git
-            mkdir -p incus-ui-canonical/.git
-            echo "${incusUiRev}" > incus-ui-canonical/.git/HEAD
-            mkdir -p incus-src/.git
-            echo "ref: refs/heads/main" > incus-src/.git/HEAD
           '';
 
           cargoBuildFlags =
